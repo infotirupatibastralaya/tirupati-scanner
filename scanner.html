@@ -12,7 +12,7 @@ video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:
 button{border:0;border-radius:999px;padding:13px 18px;margin:5px;font-size:14px;font-weight:750;background:#fff;color:#111}.dark{background:#222d;color:#fff}.success{display:none;position:fixed;inset:0;z-index:20;background:#07110feb;align-items:center;justify-content:center;text-align:center;padding:25px}.success.show{display:flex}.tick{width:82px;height:82px;line-height:82px;margin:auto;border-radius:50%;background:#43f59a;color:#062014;font-size:48px;font-weight:900}.code{font-size:22px;font-weight:850;margin:18px 0 5px;word-break:break-all}.err{color:#ffd0d0}
 </style></head><body>
 <video id="video" playsinline muted></video>
-<div class="top">TIRUPATI BASTRALAYA<br><small>LIVE BARCODE SCANNER</small></div>
+<div class="top">TIRUPATI BASTRALAYA<br><small id="scanTitle">LIVE BARCODE SCANNER</small></div>
 <div class="box"><div class="line"></div></div>
 <div id="status" class="hint">Starting rear camera…</div>
 <div class="bottom"><button id="torch" class="dark" style="display:none">🔦 Torch</button><button id="cancel" class="dark">✕ Cancel</button></div>
@@ -20,6 +20,8 @@ button{border:0;border-radius:999px;padding:13px 18px;margin:5px;font-size:14px;
 <script>
 const video=document.getElementById('video'), statusEl=document.getElementById('status');
 let stream=null, detector=null, reader=null, controls=null, done=false, torch=false, raf=0, last=0;
+const SCAN_TARGET=new URLSearchParams(location.search).get('target')||'POS';
+document.getElementById('scanTitle').textContent=SCAN_TARGET==='EX_INVOICE'?'INVOICE QR SCANNER':(SCAN_TARGET==='EX_PRODUCT'?'REPLACEMENT BARCODE SCANNER':'LIVE BARCODE SCANNER');
 
 function stopCamera(){try{if(controls&&controls.stop)controls.stop()}catch(e){};try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){};stream=null}
 function beep(){
@@ -30,7 +32,7 @@ function sendToPOS(code){
  let sent=false;
  try{
    if(window.opener && !window.opener.closed){
-     window.opener.postMessage({type:'TIRUPATI_BARCODE',barcode:String(code)},'*');
+     window.opener.postMessage({type:'TIRUPATI_BARCODE',barcode:String(code),target:SCAN_TARGET},'*');
      sent=true;
    }
  }catch(e){}
@@ -56,9 +58,9 @@ async function start(){
    const tr=stream.getVideoTracks()[0], caps=tr.getCapabilities?tr.getCapabilities():{};
    document.getElementById('torch').style.display=caps.torch?'inline-block':'none';
    if('BarcodeDetector'in window){
-     try{const s=await BarcodeDetector.getSupportedFormats(),w=['code_128','ean_13','ean_8','upc_a','upc_e','code_39','itf'].filter(x=>s.includes(x));if(w.length)detector=new BarcodeDetector({formats:w})}catch(e){}
+     try{const s=await BarcodeDetector.getSupportedFormats(),w=['qr_code','code_128','ean_13','ean_8','upc_a','upc_e','code_39','itf'].filter(x=>s.includes(x));if(w.length)detector=new BarcodeDetector({formats:w})}catch(e){}
    }
-   statusEl.textContent='Place barcode inside the box';
+   statusEl.textContent=SCAN_TARGET==='EX_INVOICE'?'Place invoice QR inside the box':'Place barcode inside the box';
    if(detector){raf=requestAnimationFrame(nativeLoop)}
    else if(window.ZXing){
      reader=new ZXing.BrowserMultiFormatReader();
@@ -71,8 +73,6 @@ async function start(){
 document.getElementById('torch').onclick=async()=>{try{const tr=stream.getVideoTracks()[0];torch=!torch;await tr.applyConstraints({advanced:[{torch}]});document.getElementById('torch').textContent=torch?'🔦 Torch ON':'🔦 Torch'}catch(e){}};
 document.getElementById('cancel').onclick=()=>{stopCamera();if(window.opener&&!window.opener.closed){try{window.opener.focus()}catch(e){}}history.length>1?history.back():null};
 document.getElementById('returnBtn').onclick=()=>{
- const code=document.getElementById('code').textContent.trim();
- if(code) sendToPOS(code);
  setTimeout(()=>{
    if(window.opener&&!window.opener.closed){try{window.opener.focus();window.close();return}catch(e){}}
    if(history.length>1) history.back();
