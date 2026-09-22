@@ -1,12 +1,74 @@
-<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><meta name="theme-color" content="#05080d"><title>Tirupati Live Scanner</title><script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script><style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05080d;color:#fff;font-family:Arial,sans-serif}video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover}.top{position:fixed;top:0;left:0;right:0;z-index:5;padding:20px;text-align:center;background:linear-gradient(#000b,transparent);font-weight:800}.box{position:fixed;z-index:4;left:7%;right:7%;top:50%;height:190px;transform:translateY(-50%);border:3px solid #39f28d;border-radius:18px;box-shadow:0 0 0 9999px #0006}.line{position:absolute;left:5%;right:5%;height:2px;background:#39f28d;box-shadow:0 0 12px #39f28d;animation:s 1.5s ease-in-out infinite alternate}@keyframes s{from{top:8%}to{top:90%}}.hint{position:fixed;z-index:5;top:calc(50% + 115px);left:0;right:0;text-align:center}.bottom{position:fixed;z-index:6;bottom:25px;left:0;right:0;text-align:center}button{border:0;border-radius:30px;padding:13px 18px;margin:5px;font-weight:700}.ok{display:none;position:fixed;inset:0;z-index:20;background:#000c;align-items:center;justify-content:center;text-align:center}.ok.show{display:flex}.tick{font-size:60px;color:#39f28d}.code{font-size:22px;font-weight:800}
-</style></head><body><video id="v" playsinline muted></video><div class="top">TIRUPATI BASTRALAYA<br><small>LIVE BARCODE SCANNER</small></div><div class="box"><div class="line"></div></div><div class="hint" id="st">Starting rear camera…</div><div class="bottom"><button id="torch" style="display:none">🔦 Torch</button><button onclick="stop();window.close()">✕ Cancel</button></div><div id="ok" class="ok"><div><div class="tick">✓</div><div id="code" class="code"></div><p>Barcode detected</p></div></div>
+<!doctype html><html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05080d"><title>Tirupati Live Scanner</title>
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05080d;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.top{position:fixed;z-index:5;top:0;left:0;right:0;text-align:center;padding:max(18px,env(safe-area-inset-top)) 12px 35px;background:linear-gradient(#000c,transparent);font-weight:800}
+.top small{font-size:11px;letter-spacing:1.4px;opacity:.85}.box{position:fixed;z-index:4;left:7%;right:7%;top:50%;height:190px;transform:translateY(-50%);border:3px solid #43f59a;border-radius:18px;box-shadow:0 0 0 9999px #0006}
+.line{position:absolute;left:5%;right:5%;height:2px;background:#43f59a;box-shadow:0 0 12px #43f59a,0 0 22px #43f59a;animation:scan 1.45s ease-in-out infinite alternate}@keyframes scan{from{top:8%}to{top:90%}}
+.hint{position:fixed;z-index:5;top:calc(50% + 112px);left:15px;right:15px;text-align:center;text-shadow:0 1px 4px #000}.bottom{position:fixed;z-index:6;bottom:max(20px,env(safe-area-inset-bottom));left:0;right:0;text-align:center}
+button{border:0;border-radius:999px;padding:13px 18px;margin:5px;font-size:14px;font-weight:750;background:#fff;color:#111}.dark{background:#222d;color:#fff}.success{display:none;position:fixed;inset:0;z-index:20;background:#07110feb;align-items:center;justify-content:center;text-align:center;padding:25px}.success.show{display:flex}.tick{width:82px;height:82px;line-height:82px;margin:auto;border-radius:50%;background:#43f59a;color:#062014;font-size:48px;font-weight:900}.code{font-size:22px;font-weight:850;margin:18px 0 5px;word-break:break-all}.err{color:#ffd0d0}
+</style></head><body>
+<video id="video" playsinline muted></video>
+<div class="top">TIRUPATI BASTRALAYA<br><small>LIVE BARCODE SCANNER</small></div>
+<div class="box"><div class="line"></div></div>
+<div id="status" class="hint">Starting rear camera…</div>
+<div class="bottom"><button id="torch" class="dark" style="display:none">🔦 Torch</button><button id="cancel" class="dark">✕ Cancel</button></div>
+<div id="success" class="success"><div><div class="tick">✓</div><div id="code" class="code"></div><div id="sent">Barcode detected</div><br><button id="returnBtn">Return to POS</button><button id="againBtn" class="dark">Scan Another</button></div></div>
 <script>
-let stream,detector,reader,done=false,torch=false,last=0;const v=document.getElementById('v'),st=document.getElementById('st');
-function stop(){try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}}
-function beep(){try{let A=window.AudioContext||window.webkitAudioContext,a=new A,o=a.createOscillator(),g=a.createGain();o.frequency.value=1250;g.gain.value=.18;o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+.1)}catch(e){}try{navigator.vibrate&&navigator.vibrate([70,30,70])}catch(e){}}
-function found(x){if(done||!x)return;done=true;beep();document.getElementById('code').textContent=x;document.getElementById('ok').classList.add('show');stop();try{window.opener&&window.opener.postMessage({type:'TIRUPATI_BARCODE',barcode:String(x)},'*')}catch(e){}setTimeout(()=>window.close(),600)}
-async function scan(t){if(done)return;if(t-last>100&&v.readyState>=2){last=t;try{if(detector){let a=await detector.detect(v);if(a[0])return found(a[0].rawValue)}}catch(e){}}requestAnimationFrame(scan)}
-async function start(){try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});v.srcObject=stream;await v.play();if('BarcodeDetector'in window){try{let f=await BarcodeDetector.getSupportedFormats();detector=new BarcodeDetector({formats:['code_128','ean_13','ean_8','upc_a','upc_e','code_39','itf'].filter(x=>f.includes(x))})}catch(e){}}if(!detector&&window.ZXing){reader=new ZXing.BrowserMultiFormatReader();reader.decodeFromVideoElement(v,(r,e)=>{if(r)found(r.getText())})}let tr=stream.getVideoTracks()[0],c=tr.getCapabilities?tr.getCapabilities():{};if(c.torch)document.getElementById('torch').style.display='inline-block';st.textContent='Place barcode inside the box';requestAnimationFrame(scan)}catch(e){st.textContent='Camera blocked. Allow Camera permission in Chrome and reload.'}}
-document.getElementById('torch').onclick=async()=>{try{let tr=stream.getVideoTracks()[0];torch=!torch;await tr.applyConstraints({advanced:[{torch:torch}]})}catch(e){}};start();
+const video=document.getElementById('video'), statusEl=document.getElementById('status');
+let stream=null, detector=null, reader=null, controls=null, done=false, torch=false, raf=0, last=0;
+
+function stopCamera(){try{if(controls&&controls.stop)controls.stop()}catch(e){};try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){};stream=null}
+function beep(){
+ try{const A=window.AudioContext||window.webkitAudioContext,a=new A(),o=a.createOscillator(),g=a.createGain();o.type='square';o.frequency.value=1150;g.gain.setValueAtTime(.18,a.currentTime);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+.12);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+.13)}catch(e){}
+ try{navigator.vibrate&&navigator.vibrate([80,35,80])}catch(e){}
+}
+function sendToPOS(code){
+ let sent=false;
+ try{if(window.opener&&!window.opener.closed){window.opener.postMessage({type:'TIRUPATI_BARCODE',barcode:String(code)},'https://script.google.com');sent=true}}catch(e){}
+ // Apps Script may render through a googleusercontent origin, so use wildcard only for this non-sensitive barcode payload.
+ if(!sent){try{if(window.opener&&!window.opener.closed){window.opener.postMessage({type:'TIRUPATI_BARCODE',barcode:String(code)},'*');sent=true}}catch(e){}}
+ document.getElementById('sent').textContent=sent?'Barcode sent to POS':'Barcode detected — tap Return to POS';
+}
+function detected(code){
+ if(done||!code)return; done=true; beep(); stopCamera();
+ document.getElementById('code').textContent=code;
+ document.getElementById('success').classList.add('show');
+ sendToPOS(code);
+}
+async function nativeLoop(ts){
+ if(done)return;
+ if(ts-last>85&&video.readyState>=2){last=ts;try{const a=await detector.detect(video);if(a&&a[0]&&a[0].rawValue){detected(a[0].rawValue);return}}catch(e){}}
+ raf=requestAnimationFrame(nativeLoop);
+}
+async function start(){
+ done=false; detector=null; reader=null; controls=null;
+ document.getElementById('success').classList.remove('show'); statusEl.textContent='Starting rear camera…';
+ try{
+   stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
+   video.srcObject=stream; await video.play();
+   const tr=stream.getVideoTracks()[0], caps=tr.getCapabilities?tr.getCapabilities():{};
+   document.getElementById('torch').style.display=caps.torch?'inline-block':'none';
+   if('BarcodeDetector'in window){
+     try{const s=await BarcodeDetector.getSupportedFormats(),w=['code_128','ean_13','ean_8','upc_a','upc_e','code_39','itf'].filter(x=>s.includes(x));if(w.length)detector=new BarcodeDetector({formats:w})}catch(e){}
+   }
+   statusEl.textContent='Place barcode inside the box';
+   if(detector){raf=requestAnimationFrame(nativeLoop)}
+   else if(window.ZXing){
+     reader=new ZXing.BrowserMultiFormatReader();
+     controls=await reader.decodeFromVideoElementContinuously(video,(r,e)=>{if(r&&!done)detected(r.getText())});
+   } else throw new Error('Barcode decoder could not load.');
+ }catch(e){
+   statusEl.innerHTML='<span class="err">Camera could not start. Allow Camera permission in Chrome, then reload.</span>';
+ }
+}
+document.getElementById('torch').onclick=async()=>{try{const tr=stream.getVideoTracks()[0];torch=!torch;await tr.applyConstraints({advanced:[{torch}]});document.getElementById('torch').textContent=torch?'🔦 Torch ON':'🔦 Torch'}catch(e){}};
+document.getElementById('cancel').onclick=()=>{stopCamera();if(window.opener&&!window.opener.closed){try{window.opener.focus()}catch(e){}}history.length>1?history.back():null};
+document.getElementById('returnBtn').onclick=()=>{if(window.opener&&!window.opener.closed){try{window.opener.focus();window.close();return}catch(e){}}history.length>1?history.back():null};
+document.getElementById('againBtn').onclick=start;
+window.addEventListener('pagehide',stopCamera);
+start();
 </script></body></html>
