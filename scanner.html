@@ -28,9 +28,12 @@ function beep(){
 }
 function sendToPOS(code){
  let sent=false;
- try{if(window.opener&&!window.opener.closed){window.opener.postMessage({type:'TIRUPATI_BARCODE',barcode:String(code)},'https://script.google.com');sent=true}}catch(e){}
- // Apps Script may render through a googleusercontent origin, so use wildcard only for this non-sensitive barcode payload.
- if(!sent){try{if(window.opener&&!window.opener.closed){window.opener.postMessage({type:'TIRUPATI_BARCODE',barcode:String(code)},'*');sent=true}}catch(e){}}
+ try{
+   if(window.opener && !window.opener.closed){
+     window.opener.postMessage({type:'TIRUPATI_BARCODE',barcode:String(code)},'*');
+     sent=true;
+   }
+ }catch(e){}
  document.getElementById('sent').textContent=sent?'Barcode sent to POS':'Barcode detected — tap Return to POS';
 }
 function detected(code){
@@ -67,7 +70,14 @@ async function start(){
 }
 document.getElementById('torch').onclick=async()=>{try{const tr=stream.getVideoTracks()[0];torch=!torch;await tr.applyConstraints({advanced:[{torch}]});document.getElementById('torch').textContent=torch?'🔦 Torch ON':'🔦 Torch'}catch(e){}};
 document.getElementById('cancel').onclick=()=>{stopCamera();if(window.opener&&!window.opener.closed){try{window.opener.focus()}catch(e){}}history.length>1?history.back():null};
-document.getElementById('returnBtn').onclick=()=>{if(window.opener&&!window.opener.closed){try{window.opener.focus();window.close();return}catch(e){}}history.length>1?history.back():null};
+document.getElementById('returnBtn').onclick=()=>{
+ const code=document.getElementById('code').textContent.trim();
+ if(code) sendToPOS(code);
+ setTimeout(()=>{
+   if(window.opener&&!window.opener.closed){try{window.opener.focus();window.close();return}catch(e){}}
+   if(history.length>1) history.back();
+ },180);
+};
 document.getElementById('againBtn').onclick=start;
 window.addEventListener('pagehide',stopCamera);
 start();
